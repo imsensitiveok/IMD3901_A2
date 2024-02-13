@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html>
+    <head>
+      <title>Colour Sort</title>
+      <meta name="description" content="Colour Sort">
+      <link rel="icon" type="image/x-icon" href="/assets/favicon.png">
+      
+      <!-- aframe 1.5.0 -->
+      <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script> 
+
+      <!------ PICKUPABLE: ------>
+      <script>
+        "use strict";
+        
+        AFRAME.registerComponent('pickupable', {
+          init: function() {
+
+            //object:
+            var self = this;
+            self.el.id="notPickedUp"
+
+            //player/camera:
+            self.player = document.querySelector('#camera');
+            self.player.holding = false;
+            
+            self.el.addEventListener('click', (e) => {
+                //release:
+                if (self.el.id === "pickedUp") {
+                    self.el.sceneEl.object3D.attach(self.el.object3D);
+                    self.el.id = "notPickedUp"
+                    self.player.holding = false;
+                    self.el.setAttribute('scale', '1.0 1.0 1.0');
+                }
+                //pick-up:
+                else if (self.player.holding === false) {
+                    self.player.object3D.attach(self.el.object3D);
+                    self.el.id = "pickedUp";
+                    self.player.holding = true;
+                    self.el.setAttribute('scale', '1.2 1.2 1.2');
+                }
+            });
+  
+            //hover effects:
+            self.el.addEventListener('mouseenter', (e) => {
+              self.el.setAttribute('scale', '1.2 1.2 1.2');
+            });
+            self.el.addEventListener('mouseleave', (e) => {
+              if (self.el.id === "notPickedUp"){
+                self.el.setAttribute('scale', '1.0 1.0 1.0');
+              }
+            });
+          }
+        });
+      </script>
+
+      <!------ PLACEABLE: ------>
+      <script>
+        "use strict";
+
+        AFRAME.registerComponent('placeable', {
+          init: function() {
+            var shelf = this; //shelf:
+            
+            shelf.el.addEventListener('click', (e) => {
+
+              var obj = document.querySelector('#pickedUp'); //object:
+
+              //if holding object:
+              if (obj) {
+                var shelfColor = shelf.el.getAttribute('material').color; //shelf color
+
+                var objColor = obj.getAttribute('material').color; //object color
+
+                //if colors match:
+                if (shelfColor === objColor) {
+                  //set shelf color to gray:
+                  shelf.el.setAttribute('material', 'color', '#D3D3D3');
+
+                  //drop object:
+                  obj.id = "notPickedUp"
+                  document.querySelector('#camera').holding = false;
+
+                  //destroy object:
+                  document.querySelector('#scene').removeChild(obj);
+
+                  //play ding sound:
+                  const wrongSound = document.querySelectorAll('.ding-sound');
+                  wrongSound.forEach(function(soundEntity) {
+                    soundEntity.components.sound.playSound();
+                  });
+
+                  //check if all objects have been matched:
+                  var check = document.querySelector('#notPickedUp');
+
+                  if (check === null) {
+
+                    //make congrats model appear:
+                    var entity = document.createElement('a-entity');
+                    entity.setAttribute('position', '-67 5 -5');
+                    entity.setAttribute('scale', '0.08 0.08 0.08');
+                    entity.setAttribute('gltf-model', '#congratulations_model');
+                    document.querySelector('#scene').appendChild(entity);
+
+                    //make walls yellow:
+                    const allWalls = document.querySelectorAll('.wall');
+                    for (var i = 0; i < allWalls.length; i++) {
+                      var myWall = allWalls[i];
+                      myWall.setAttribute('material', 'color:#F6C243');
+                    }
+
+                    //make ground white:
+                    const ground = document.querySelector('.ground');
+                    ground.setAttribute('material', 'color:#FFFFFF');
+
+                    //stop background music:
+                    const wrongSound = document.querySelectorAll('.background-music');
+                    wrongSound.forEach(function(soundEntity) {
+                      soundEntity.components.sound.pause();
+                    });
+                  }
+                } 
+                else {
+                  //play wrong sound:
+                  const wrongSound = document.querySelectorAll('.wrong-sound');
+                  wrongSound.forEach(function(soundEntity) {
+                    soundEntity.components.sound.playSound();
+                  });
+                }
+              }
+            });
+          }
+        });
+      </script>
+      
+      <!------ START-EXPERIENCE: ------>
+      <link rel="stylesheet" href="/css/user-gesture.css">
+      <script>
+        AFRAME.registerComponent('start-experience', {
+          init: function () {
+            console.log('scene loaded');
+            document.querySelector('#user-gesture-button').style.display='block';
+          }
+        });
+        
+        const startExperience = function() {
+          //hide user-gesture overlay:
+          document.querySelector('#user-gesture-overlay').style.display='none';
+          
+          //start background music:
+          const backgroundSound = document.querySelectorAll('.background-music');
+          backgroundSound.forEach(function(soundEntity) {
+            soundEntity.components.sound.playSound();
+          });
+        }
+      </script>
+    </head>
+
+    <body>
+        <div id="user-gesture-overlay">
+          <div class="center">
+            <button id="user-gesture-button" onclick="startExperience();">Start Colour Sorting!</button>
+          </div>
+        </div>
+            
+        <a-scene id="scene" start-experience>
+
+            <a-assets timeout="10000">
+              <!-- audio files -->
+              <audio id="background_music" src="/assets/backgroundMusic.mp3" preload="auto" crossorigin="anonymous"></audio>
+              <audio id="wrong_sound" src="/assets/wrong.mp3" preload="auto" crossorigin="anonymous"></audio>
+              <audio id="ding_sound" src="/assets/ding.mp3" preload="auto" crossorigin="anonymous"></audio>
+
+              <!-- glb files -->
+              <a-asset-item id="congratulations_model" response-type="arraybuffer" src="/assets/congratulations.glb"></a-asset-item>
+            </a-assets>
+
+            <a-entity id="camera" 
+              camera look-controls wasd-controls 
+              position="0 3 4" 
+              cursor="fuse:false; rayOrigin:mouse;" 
+              raycaster="far:20; interval:300; objects:.interactive">
+            </a-entity>
+            
+            <a-entity 
+              class="background-music" 
+              sound="src:#background_music; autoplay:false;">
+            </a-entity>
+
+            <a-entity 
+              class="wrong-sound" 
+              sound="src:#wrong_sound; autoplay:false;">
+            </a-entity>
+
+            <a-entity 
+              class="ding-sound" 
+              sound="src:#ding_sound; autoplay:false;">
+            </a-entity>
+
+            <a-entity id="room">
+              <a-entity class="ground" geometry="primitive:plane; width:30; height:20;" material="color:gray;"  position="0 0 0"    rotation="-90 0 0"></a-entity>
+              <a-entity class="wall"   geometry="primitive:plane; width:20; height:20;" material="color:white;" position="15 10 0"  rotation="0 -90 0"></a-entity>
+              <a-entity class="wall"   geometry="primitive:plane; width:20; height:20;" material="color:white;" position="-15 10 0" rotation="0 90 0"></a-entity>
+              <a-entity class="wall"   geometry="primitive:plane; width:30; height:20;" material="color:white;" position="0 10 10"  rotation="0 180 0"></a-entity>
+              <a-entity class="wall"   geometry="primitive:plane; width:30; height:20;" material="color:white;" position="0 10 -10" rotation="0 0 0"></a-entity>
+            </a-entity>
+
+            <a-entity id="notPickedUp"
+              class="item interactive" 
+              geometry="primitive:sphere; radius:0.5;" 
+              material="color:#FF0000;" 
+              position="0 1 0;" 
+              pickedUp="false;"
+              pickupable>
+            </a-entity>
+
+            <a-entity id="notPickedUp"
+              class="item interactive" 
+              geometry="primitive:sphere; radius:0.5;" 
+              material="color:#00FF00;" 
+              position="2 1 0" 
+              pickedUp="false;"
+              pickupable>
+            </a-entity>
+
+            <a-entity id="notPickedUp"
+              class="item interactive" 
+              geometry="primitive:sphere; radius:0.5;" 
+              material="color:#0000FF;" 
+              position="-2 1 0" 
+              pickedUp="false;"
+              pickupable>
+            </a-entity>
+
+            <a-entity 
+              class="shelf interactive"
+              geometry="primitive:box; width:6.0; height:2.0; depth:2.0;" 
+              material="color:#FF0000;"
+              position="-10 1 -9"
+              rotation="0 0 0"
+              placeable>
+            </a-entity>
+
+            <a-entity 
+              class="shelf interactive"
+              geometry="primitive:box; width:6.0; height:2.0; depth:2.0;" 
+              material="color:#00FF00;"
+              position="0 1 -9"
+              rotation="0 0 0"
+              placeable>
+            </a-entity>
+
+            <a-entity 
+              class="shelf interactive"
+              geometry="primitive:box; width:6.0; height:2.0; depth:2.0;" 
+              material="color:#0000FF;"
+              position="10 1 -9"
+              rotation="0 0 0"
+              placeable>
+            </a-entity>
+
+        </a-scene>
+    </body>
+</html>
